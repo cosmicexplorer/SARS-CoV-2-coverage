@@ -4,6 +4,7 @@ import edu.stanford.nlp.util.logging.Redwood
 import spray.json._
 
 import scala.io.StdIn
+import java.net.URL
 
 case class NamedEntity(
     name: String,
@@ -19,16 +20,41 @@ case class AssociatedTags(
     tags: TaggedText,
 )
 
+case class UrlWrapper(url: String) {
+  def toUrl = new URL(url)
+}
+
+case class Title(title: String)
+
+case class NewsArticle(
+  url: UrlWrapper,
+  title: Title,
+  authors: Seq[String],
+  publish_date: Int,
+  text: String
+)
+
 case class InputTextSegment(
     id: TextSegmentId,
-    text: String,
+    article: NewsArticle,
 )
+
+object TextSegmentUtil {
+  def fromArticle(article: NewsArticle): InputTextSegment = InputTextSegment(
+      id = TextSegmentId(java.util.UUID.randomUUID.toString),
+      article = article
+  )
+
+}
 
 object NERJsonProtocol extends DefaultJsonProtocol {
   implicit val entityFormat = jsonFormat2(NamedEntity)
   implicit val taggedTextFormat = jsonFormat1(TaggedText)
   implicit val segmentIdFormat = jsonFormat1(TextSegmentId)
   implicit val associatedTagsFormat = jsonFormat2(AssociatedTags)
+  implicit val titleFormat = jsonFormat1(Title)
+  implicit val urlFormat = jsonFormat1(UrlWrapper)
+  implicit val articleFormat = jsonFormat5(NewsArticle)
   implicit val segmentFormat = jsonFormat2(InputTextSegment)
 }
 
@@ -80,7 +106,8 @@ object NERPiped extends App {
     line = StdIn.readLine()
     line != null
   }) {
-    val InputTextSegment(id, text) = line.parseJson.convertTo[InputTextSegment]
+    val input = TextSegmentUtil.fromArticle(line.parseJson.convertTo[NewsArticle])
+    val InputTextSegment(id, NewsArticle(_, _, _, _, text)) = input
     val tagged = processTextSegment(text)
     System.out.println(AssociatedTags(id, tagged).toJson)
   }

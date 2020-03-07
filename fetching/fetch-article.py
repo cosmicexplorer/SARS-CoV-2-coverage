@@ -5,8 +5,8 @@ import sys
 import threading
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
-from urllib.parse import urlparse
+from time import mktime
+from typing import Any, Dict, Iterable, List, Optional
 
 import requests
 from bs4 import BeautifulSoup  # type: ignore
@@ -50,10 +50,6 @@ class NewsArticle:
 
   PAGE_NOT_FOUND_TITLE_MARKER = 'Page Not Found'
 
-  def extract_domain(self) -> str:
-    parsed = urlparse(self.url)
-    return parsed.netloc
-
   @classmethod
   def from_response(cls, resp: Response) -> Optional['NewsArticle']:
     article = Article(resp.url)
@@ -77,6 +73,21 @@ class NewsArticle:
                authors=list(article.authors),
                publish_date=article.publish_date,
                text=article.text)
+
+  def into_json(self) -> Dict[str, Any]:
+    return dict(
+      url=dict(url=self.url),
+      title=dict(title=self.title),
+      authors=self.authors,
+      publish_date=int(mktime(self.publish_date.timetuple())),
+      text=self.text,
+    )
+
+  def __str__(self) -> str:
+    ret = self.into_json()
+    # Don't show the whole article text, it's huge!
+    ret['text'] = ret['text'][0:50] + '...'
+    return json.dumps(ret)
 
 
 @dataclass(frozen=True)
@@ -205,6 +216,7 @@ def main():
 
   for article in twitter_search_query.paged_fetch_the_news():
     sys.stderr.write(f'article found: {article}\n')
+    # sys.stdout.write(json.dumps(article.into_json()))
 
 
 if __name__ == '__main__':
