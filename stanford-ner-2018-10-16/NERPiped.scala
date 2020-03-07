@@ -12,15 +12,24 @@ case class NamedEntity(
 
 case class TaggedText(entries: Seq[NamedEntity])
 
+case class TextSegmentId(id: String)
+
 case class AssociatedTags(
-    curId: String,
+    id: TextSegmentId,
     tags: TaggedText,
+)
+
+case class InputTextSegment(
+    id: TextSegmentId,
+    text: String,
 )
 
 object NERJsonProtocol extends DefaultJsonProtocol {
   implicit val entityFormat = jsonFormat2(NamedEntity)
   implicit val taggedTextFormat = jsonFormat1(TaggedText)
+  implicit val segmentIdFormat = jsonFormat1(TextSegmentId)
   implicit val associatedTagsFormat = jsonFormat2(AssociatedTags)
+  implicit val segmentFormat = jsonFormat2(InputTextSegment)
 }
 
 object NERPiped extends App {
@@ -49,9 +58,10 @@ object NERPiped extends App {
   val namedEntityPattern = """^\s*([^\s]+)\s+([A-Z]+).*$""".r
 
   private def processTextSegment(text: String): TaggedText = {
+    // (quoted from NERDemo.java in the stanford NER download zip):
     // This one is best for dealing with the output as a TSV (tab-separated column) file.
     // The first column gives entities, the second their classes, and the third the remaining text
-    // in a document
+    // in a document.
     val entries = ncc
       .classifyToString(text, "tabbedEntities", false)
       .split("\n")
@@ -65,27 +75,13 @@ object NERPiped extends App {
   }
 
   var line = ""
-  var curId = ""
-  var curText = ""
 
   while ({
     line = StdIn.readLine()
     line != null
   }) {
-    line match {
-      case "++++++++++++++++++++++++++++++++++++++++++++++++++" => {
-        if (!curText.isEmpty) {
-          val tagged = processTextSegment(curText)
-          System.out.println(
-            "++++++++++++++++++++++++++++++++++++++++++++++++++")
-          System.out.println(AssociatedTags(curId, tagged).toJson)
-        }
-        curText = ""
-        curId = StdIn.readLine()
-      }
-      case s => {
-        curText += s"${s}\n"
-      }
-    }
+    val InputTextSegment(id, text) = line.parseJson.convertTo[InputTextSegment]
+    val tagged = processTextSegment(text)
+    System.out.println(AssociatedTags(id, tagged).toJson)
   }
 }
