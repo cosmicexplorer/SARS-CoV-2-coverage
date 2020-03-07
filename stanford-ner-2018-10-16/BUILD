@@ -6,12 +6,19 @@ jar_library(
   ],
 )
 
-jvm_binary(
-  name='ner-demo',
-  sources=['*.java'],
+scala_library(
+  name='ner-lib',
   dependencies=[
     ':stanford-ner',
   ],
-  main='NERDemo',
+)
+
+jvm_binary(
+  name='ner-piped',
+  dependencies=[
+    ':stanford-ner',
+    ':ner-lib',
+  ],
+  main='NERPiped',
   extra_jvm_options=['-Xmx4g'],
 )
