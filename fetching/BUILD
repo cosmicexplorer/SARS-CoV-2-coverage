@@ -1,0 +1,11 @@
+python_binary(
+  name='fetch-article',
+  source='fetch-article.py',
+  dependencies=[
+    '3rdparty/python:beautifulsoup4',
+    '3rdparty/python:newspaper3k',
+    '3rdparty/python:pants',
+    '3rdparty/python:requests',
+    '3rdparty/python:requests-futures',
+  ],
+)

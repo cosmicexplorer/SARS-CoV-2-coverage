@@ -1,0 +1,4 @@
+beautifulsoup4==4.8.2
+newspaper3k==0.2.8
+requests==2.23.0
+requests-futures==1.0.0
