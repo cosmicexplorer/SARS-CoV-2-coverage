@@ -10,6 +10,7 @@ scala_library(
   name='ner-lib',
   dependencies=[
     ':stanford-ner',
+    '3rdparty/jvm:spray-json',
   ],
 )
 

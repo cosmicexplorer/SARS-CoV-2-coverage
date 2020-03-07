@@ -1,8 +1,32 @@
 import edu.stanford.nlp.ie.NERClassifierCombiner
 import edu.stanford.nlp.util._
 import edu.stanford.nlp.util.logging.Redwood
+import spray.json._
+
+import scala.io.StdIn
+
+
+case class NamedEntity(
+  name: String,
+  entityType: String,
+)
+
+case class TaggedText(entries: Seq[NamedEntity])
+
+case class AssociatedTags(
+  curId: String,
+  tags: TaggedText,
+)
+
+object NERJsonProtocol extends DefaultJsonProtocol {
+  implicit val entityFormat = jsonFormat2(NamedEntity)
+  implicit val taggedTextFormat = jsonFormat1(TaggedText)
+  implicit val associatedTagsFormat = jsonFormat2(AssociatedTags)
+}
 
 object NERPiped extends App {
+
+  import NERJsonProtocol._
 
   /** A logger for this class */
   val log = Redwood.channels(classOf[NERClassifierCombiner])
@@ -22,16 +46,43 @@ object NERPiped extends App {
 
   val ncc = NERClassifierCombiner.createNERClassifierCombiner("ner", null, props)
 
-  val example = Seq(
-    "Good afternoon Rajat Raina, how are you today?",
-    "I go to school at Stanford University, which is located in California.",
-    "Do you know what it is like to be hungry?",
-    "Yes, I was hungry on Sunday at Arkansas Town Hall."
-  )
+  val namedEntityPattern = """^\s*([^\s]+)\s+([A-Z]+).*$""".r
 
-  example.foreach { str =>
+  private def processTextSegment(text: String): TaggedText = {
     // This one is best for dealing with the output as a TSV (tab-separated column) file.
-    // The first column gives entities, the second their classes, and the third the remaining text in a document
-    System.out.print(ncc.classifyToString(str, "tabbedEntities", false))
+    // The first column gives entities, the second their classes, and the third the remaining text
+    // in a document
+    val entries = ncc.classifyToString(text, "tabbedEntities", false)
+      .split("\n")
+      .filter(!_.startsWith("\t"))
+      .map {
+        case namedEntityPattern(entity, entityType) => NamedEntity(entity, entityType)
+        case x => throw new Exception(s"${x} was not a recognized entity type!")
+      }
+    TaggedText(entries.toSeq)
+  }
+
+  var line = ""
+  var curId = ""
+  var curText = ""
+
+  while ({
+    line = StdIn.readLine()
+    line != null
+  }) {
+    line match {
+      case "++++++++++++++++++++++++++++++++++++++++++++++++++" => {
+        if (!curText.isEmpty) {
+          val tagged = processTextSegment(curText)
+          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++")
+          System.out.println(AssociatedTags(curId, tagged).toJson)
+        }
+        curText = ""
+        curId = StdIn.readLine()
+      }
+      case s => {
+        curText += s"${s}\n"
+      }
+    }
   }
 }
