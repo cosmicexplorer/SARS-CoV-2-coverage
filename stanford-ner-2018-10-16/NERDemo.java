@@ -1,12 +1,14 @@
 import edu.stanford.nlp.ie.AbstractSequenceClassifier;
+import edu.stanford.nlp.ie.NERClassifierCombiner;
 import edu.stanford.nlp.ie.crf.*;
 import edu.stanford.nlp.io.IOUtils;
 import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.sequences.DocumentReaderAndWriter;
-import edu.stanford.nlp.util.Triple;
+import edu.stanford.nlp.util.*;
+import edu.stanford.nlp.util.logging.Redwood;
 
-import java.util.List;
+import java.util.*;
 
 
 /** This is a demo of calling CRFClassifier programmatically.
@@ -36,15 +38,27 @@ import java.util.List;
 
 public class NERDemo {
 
+  /** A logger for this class */
+  private static final Redwood.RedwoodChannels log = Redwood.channels(NERClassifierCombiner.class);
+
   public static void main(String[] args) throws Exception {
 
-    String serializedClassifier = "classifiers/english.all.3class.distsim.crf.ser.gz";
+    String[] serializedClassifiers = {
+      "classifiers/english.conll.4class.distsim.crf.ser.gz",
+      "classifiers/english.muc.7class.distsim.crf.ser.gz",
+    };
 
     if (args.length > 0) {
-      serializedClassifier = args[0];
+      serializedClassifiers = args[0].split(",");
     }
 
-    AbstractSequenceClassifier<CoreLabel> classifier = CRFClassifier.getClassifier(serializedClassifier);
+    // from NERClassifierCombiner
+    StringUtils.logInvocationString(log, args);
+    Properties props = StringUtils.argsToProperties(args);
+
+    NERClassifierCombiner ncc = NERClassifierCombiner.createNERClassifierCombiner("ner", null, props);
+
+    AbstractSequenceClassifier<CoreLabel> classifier = ncc;
 
     /* For either a file to annotate or for the hardcoded text example, this
        demo file shows several ways to process the input, for teaching purposes.
@@ -105,8 +119,12 @@ public class NERDemo {
          assignments and an n-best list of classifications with probabilities.
       */
 
-      String[] example = {"Good afternoon Rajat Raina, how are you today?",
-                          "I go to school at Stanford University, which is located in California." };
+      String[] example = {
+        "Good afternoon Rajat Raina, how are you today?",
+        "I go to school at Stanford University, which is located in California.",
+        "Do you know what it is like to be hungry?",
+        "Yes, I was hungry on Sunday at Arkansas Town Hall."
+      };
       for (String str : example) {
         System.out.println(classifier.classifyToString(str));
       }
