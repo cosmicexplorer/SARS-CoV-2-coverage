@@ -5,17 +5,16 @@ import spray.json._
 
 import scala.io.StdIn
 
-
 case class NamedEntity(
-  name: String,
-  entityType: String,
+    name: String,
+    entityType: String,
 )
 
 case class TaggedText(entries: Seq[NamedEntity])
 
 case class AssociatedTags(
-  curId: String,
-  tags: TaggedText,
+    curId: String,
+    tags: TaggedText,
 )
 
 object NERJsonProtocol extends DefaultJsonProtocol {
@@ -44,7 +43,8 @@ object NERPiped extends App {
   StringUtils.logInvocationString(log, args)
   val props = StringUtils.argsToProperties(args: _*)
 
-  val ncc = NERClassifierCombiner.createNERClassifierCombiner("ner", null, props)
+  val ncc =
+    NERClassifierCombiner.createNERClassifierCombiner("ner", null, props)
 
   val namedEntityPattern = """^\s*([^\s]+)\s+([A-Z]+).*$""".r
 
@@ -52,11 +52,13 @@ object NERPiped extends App {
     // This one is best for dealing with the output as a TSV (tab-separated column) file.
     // The first column gives entities, the second their classes, and the third the remaining text
     // in a document
-    val entries = ncc.classifyToString(text, "tabbedEntities", false)
+    val entries = ncc
+      .classifyToString(text, "tabbedEntities", false)
       .split("\n")
       .filter(!_.startsWith("\t"))
       .map {
-        case namedEntityPattern(entity, entityType) => NamedEntity(entity, entityType)
+        case namedEntityPattern(entity, entityType) =>
+          NamedEntity(entity, entityType)
         case x => throw new Exception(s"${x} was not a recognized entity type!")
       }
     TaggedText(entries.toSeq)
@@ -74,7 +76,8 @@ object NERPiped extends App {
       case "++++++++++++++++++++++++++++++++++++++++++++++++++" => {
         if (!curText.isEmpty) {
           val tagged = processTextSegment(curText)
-          System.out.println("++++++++++++++++++++++++++++++++++++++++++++++++++")
+          System.out.println(
+            "++++++++++++++++++++++++++++++++++++++++++++++++++")
           System.out.println(AssociatedTags(curId, tagged).toJson)
         }
         curText = ""

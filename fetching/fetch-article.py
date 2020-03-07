@@ -9,12 +9,11 @@ from typing import Iterable, List, Optional
 from urllib.parse import urlparse
 
 import requests
-from bs4 import BeautifulSoup   # type: ignore
-from newspaper import Article   # type: ignore
-from pants.util.memo import memoized_classproperty # type: ignore
+from bs4 import BeautifulSoup  # type: ignore
+from newspaper import Article  # type: ignore
+from pants.util.memo import memoized_classproperty  # type: ignore
 from requests.models import Response
-from requests_futures.sessions import FuturesSession # type: ignore
-
+from requests_futures.sessions import FuturesSession  # type: ignore
 
 TWITTER_PLAINTEXT_SEARCH_BASE_URL = 'https://mobile.twitter.com'
 
