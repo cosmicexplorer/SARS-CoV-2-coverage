@@ -4,7 +4,6 @@ import edu.stanford.nlp.util.logging.Redwood
 import spray.json._
 
 import scala.io.StdIn
-import java.net.URL
 
 case class NamedEntity(
     name: String,
@@ -13,49 +12,35 @@ case class NamedEntity(
 
 case class TaggedText(entries: Seq[NamedEntity])
 
-case class TextSegmentId(id: String)
+object UUIDUtils {
+  val validUUID = """[a-f0-9\-]{36}""".r
+}
+
+case class UUIDWrapper(uuid: String) {
+  import UUIDUtils._
+
+  uuid match {
+    case validUUID() => ()
+    case _ => throw new Exception(s"given uuid string $uuid was invalid!")
+  }
+}
 
 case class AssociatedTags(
-    id: TextSegmentId,
+    uuid: UUIDWrapper,
     tags: TaggedText,
 )
 
-case class UrlWrapper(url: String) {
-  def toUrl = new URL(url)
-}
-
-case class Title(title: String)
-
 case class NewsArticle(
-  url: UrlWrapper,
-  title: Title,
-  authors: Seq[String],
-  publish_date: Int,
+  uuid: UUIDWrapper,
   text: String
 )
-
-case class InputTextSegment(
-    id: TextSegmentId,
-    article: NewsArticle,
-)
-
-object TextSegmentUtil {
-  def fromArticle(article: NewsArticle): InputTextSegment = InputTextSegment(
-      id = TextSegmentId(java.util.UUID.randomUUID.toString),
-      article = article
-  )
-
-}
 
 object NERJsonProtocol extends DefaultJsonProtocol {
   implicit val entityFormat = jsonFormat2(NamedEntity)
   implicit val taggedTextFormat = jsonFormat1(TaggedText)
-  implicit val segmentIdFormat = jsonFormat1(TextSegmentId)
+  implicit val uuidFormat = jsonFormat1(UUIDWrapper)
   implicit val associatedTagsFormat = jsonFormat2(AssociatedTags)
-  implicit val titleFormat = jsonFormat1(Title)
-  implicit val urlFormat = jsonFormat1(UrlWrapper)
-  implicit val articleFormat = jsonFormat5(NewsArticle)
-  implicit val segmentFormat = jsonFormat2(InputTextSegment)
+  implicit val articleFormat = jsonFormat2(NewsArticle)
 }
 
 object NERPiped extends App {
@@ -92,10 +77,9 @@ object NERPiped extends App {
       .classifyToString(text, "tabbedEntities", false)
       .split("\n")
       .filter(!_.startsWith("\t"))
-      .map {
-        case namedEntityPattern(entity, entityType) =>
-          NamedEntity(entity, entityType)
-        case x => throw new Exception(s"${x} was not a recognized entity type!")
+      .flatMap {
+        case namedEntityPattern(entity, entityType) => Some(NamedEntity(entity, entityType))
+        case _nonRecognizedText => None
       }
     TaggedText(entries.toSeq)
   }
@@ -106,9 +90,8 @@ object NERPiped extends App {
     line = StdIn.readLine()
     line != null
   }) {
-    val input = TextSegmentUtil.fromArticle(line.parseJson.convertTo[NewsArticle])
-    val InputTextSegment(id, NewsArticle(_, _, _, _, text)) = input
+    val NewsArticle(uuid, text) = line.parseJson.convertTo[NewsArticle]
     val tagged = processTextSegment(text)
-    System.out.println(AssociatedTags(id, tagged).toJson)
+    System.out.println(AssociatedTags(uuid, tagged).toJson)
   }
 }
